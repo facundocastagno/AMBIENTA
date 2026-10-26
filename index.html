@@ -2145,10 +2145,18 @@
     els.buscarLocalidad.disabled = true;
     els.buscarLocalidad.textContent = "Buscando...";
     try{
-      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nombre)}&count=1&language=es&format=json`);
+      // El buscador solo entiende el nombre suelto ("Hernando", no "Hernando, Córdoba"):
+      // se busca la primera parte y entre los resultados se prefiere Argentina y Córdoba.
+      const partes = nombre.split(",").map(t => t.trim()).filter(Boolean);
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(partes[0])}&count=20&language=es&format=json`);
       const data = await res.json();
-      if(data.results && data.results[0]){
-        const lat = data.results[0].latitude.toFixed(4), lon = data.results[0].longitude.toFixed(4);
+      const sinTilde = t => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const resto = sinTilde(partes.slice(1).join(" "));
+      const puntos = r => (r.country_code === "AR" ? 4 : 0) + (sinTilde(r.admin1).includes("cordoba") ? 2 : 0)
+        + (resto && (sinTilde(r.admin1).includes(resto) || sinTilde(r.admin2).includes(resto)) ? 3 : 0);
+      const lista = (data.results || []).slice().sort((a, b) => puntos(b) - puntos(a));
+      if(lista[0]){
+        const lat = lista[0].latitude.toFixed(4), lon = lista[0].longitude.toFixed(4);
         els.lat.value = lat; els.lon.value = lon;
         els.coords.value = `${lat}, ${lon}`;
         saveState();
