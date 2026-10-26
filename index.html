@@ -2204,7 +2204,8 @@
     const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MIN,T2M_MAX,PRECTOTCORR,ALLSKY_SFC_SW_DWN,TS&community=AG&longitude=${lon}&latitude=${lat}&start=${start}&end=${end}&format=JSON`;
 
     try{
-      const res = await fetch(url);
+      let res = await fetch(url);
+      if(!res.ok) res = await fetch(url.replace(",TS&", "&"));   // si el servicio rechaza TS, se pide sin temperatura de suelo
       if(!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
       const tmin = data.properties.parameter.T2M_MIN;
